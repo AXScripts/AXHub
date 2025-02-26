@@ -1,4 +1,3 @@
-print("test")
 local lib = select(1, ...)
-print(lib)
+lib:ToggleAnimations(false)
 lib:SetEnabled(true)
