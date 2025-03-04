@@ -82,6 +82,21 @@ function Module.IsAlive(Character: Model): boolean?
   end
 end
 
+function Module.EnemySpawned(EnemyName)
+  if (tick() - Module.Debounce.GetEnemy) <= 0.25 then
+    return nil
+  end
+  
+  local Enemies = Module.Enemies
+  local Enemy = if type(EnemyName) == "table" then Enemies:GetClosest(EnemyName) else Enemies:GetEnemyByTag(EnemyName)
+  
+  if Enemy then
+    return Enemy
+  elseif Settings.SmoothMode then
+    Module.Debounce.GetEnemy = tick()
+  end
+end
+
 function Module.EquipTool(ToolName: string, ByType: boolean?): (nil)
   ByType = if not ToolName then true else ByType
   ToolName = ToolName or Settings.FarmTool
