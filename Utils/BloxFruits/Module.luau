@@ -71,7 +71,7 @@ Module.GameData = {
 }
 
 function Module.IsAlive(Character: Model): boolean?
-  local Humanoid = Cached.Humanoids[Character] or Character:FindFirstChildOfClass("Humanoid")
+  local Humanoid = Character and (Cached.Humanoids[Character] or Character:FindFirstChildOfClass("Humanoid"))
   
   if Humanoid then
     if not Cached.Humanoids[Character] then
@@ -82,14 +82,96 @@ function Module.IsAlive(Character: Model): boolean?
   end
 end
 
+function Module.EquipTool(ToolName: string, ByType: boolean?): (nil)
+  ByType = if not ToolName then true else ByType
+  ToolName = ToolName or Settings.FarmTool
+  
+  if not Module.IsAlive(Player.Character) then
+    return nil
+  end
+  
+  local Equipped = Cached.Equipped
+  
+  if Equipped and Equipped.Parent and Equipped[if ByType then "ToolTip" else "Name"] == ToolName then
+    if Equipped:GetAttribute("Locks") then
+      Equipped:SetAttribute("Locks", nil)
+    end
+    
+    if Equipped.Parent == Player.Backpack then
+      Player.Character.Humanoid:EquipTool(Equipped)
+    elseif Equipped.Parent == Player.Character then
+      return nil
+    end
+  end
+  
+  if ToolName and not ByType then
+    local BackpackTool = Player.Backpack:FindFirstChild(ToolName)
+    
+    if BackpackTool then
+      Cached.Equipped = BackpackTool
+      Player.Character.Humanoid:EquipTool(BackpackTool)
+    end
+  else
+    for _, Tool in Player.Backpack:GetChildren() do
+      if Tool:IsA("Tool") and Tool.ToolTip == ToolName then
+        Cached.Equipped = Tool
+        Player.Character.Humanoid:EquipTool(Tool)
+        return nil
+      end
+    end
+  end
+end
+
 function Module:TravelTo(Sea: number?): (nil)
   return self.Network:InvokeServer(`Travel{self.GameData.SeasName[Sea]}`)
 end
 
-Module.RunModules = (function()
-  local RunModules = {}
+Module.UtilsModules = (function()
+  local UtilsModules = {}
   
-  RunModules.FarmQueue = function(Options)
+  UtilsModules.TweenCreator = function()
+    local module = {}
+    module.__index = module
+    
+    local TweenService = game:GetService("TweenService")
+    
+    local tweens = {}
+    local EasingStyle = Enum.EasingStyle.Linear
+    
+    function module.new(obj, time, prop, value)
+      local self = setmetatable({}, module)
+      
+      self.tween = TweenService:Create(obj, TweenInfo.new(time, EasingStyle), { [prop] = value })
+      self.tween:Play()
+      self.value = value
+      self.object = obj
+      
+      if tweens[obj] then
+        tweens[obj]:destroy()
+      end
+      
+      tweens[obj] = self
+      return self
+    end
+    
+    function module:destroy()
+      self.tween:Pause()
+      self.tween:Destroy()
+      
+      tweens[self.object] = nil
+      setmetatable(self, nil)
+    end
+    
+    function module:stop(obj)
+      if tweens[obj] then
+        tweens[obj]:destroy()
+      end
+    end
+    
+    return module
+  end
+  
+  UtilsModules.FarmQueue = function(Options)
     local Success, ErrorMessage = pcall(function()
       while task.wait() do
         local Enabled = false
@@ -113,7 +195,7 @@ Module.RunModules = (function()
     -- Module.Signals.Error:Fire(ErrorMessage)
   end
   
-  RunModules.OptionsPlugin = function(EnabledOptions)
+  UtilsModules.OptionsPlugin = function(EnabledOptions)
     local Plugin = {}
     
     function Plugin:Toggle(Config, Callback)
@@ -139,8 +221,8 @@ Module.RunModules = (function()
     return Plugin
   end
   
-  return RunModules
-end)
+  return UtilsModules
+end)()
 
 Module.Network = (function()
   local Network = {}
