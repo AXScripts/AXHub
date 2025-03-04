@@ -207,7 +207,12 @@ Module.UtilsModules = (function()
       end
     end)
     
-    -- Module.Signals.Error:Fire(ErrorMessage)
+    _ENV.OnFarm = nil
+    _ENV.loadedFarm = nil
+    
+    local Message = Instance.new("Message", workspace)
+    ScriptEnv.error_message = Message
+    Message.Text = (`script Error [ {Settings.RunningOption or "Null"} ] {ErrorMessage}`)
   end
   
   UtilsModules.OptionsPlugin = function(EnabledOptions)
