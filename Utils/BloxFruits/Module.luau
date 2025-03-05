@@ -330,6 +330,22 @@ Module.UtilsModules = (function()
       return Toggle, Toggle.OnToggle:Connect(Callback)
     end
     
+    function Plugin:Slider(Config, Callback)
+      Callback = GetSafeCallback(Callback)
+      
+      local Title = Config[1] or Config.Title
+      local Description = Config.Description or (type(Config[2]) == "string" and Config[2]) or ""
+      
+      local Start = if Description == "" then 1 else 2
+      local Default = Config.Default or Config[Start + 1] or error(`Default Value Expected, param {Start + 1}`)
+      local Min = Config.Min or Config[Start + 2] or error(`Min Value Expected, param {Start + 2}`)
+      local Max = Config.Max or Config[Start + 3] or error(`Max Value Expected, param {Start + 3}`)
+      
+      local Slider = self:AddSlider(Title, Description, Default, Min, Max)
+      
+      return Slider, Slider.ValueUpdated:Connect(Callback)
+    end
+    
     return Plugin
   end
   
