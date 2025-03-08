@@ -68,6 +68,16 @@ local function CreateDictionary(array: { string }, key: any?): { [string]: any }
   return Dictionary
 end
 
+local function CreateNewCollection(Tag: string): { Instance }
+  local Instances = CollectionService:GetTagged(Tag)
+  
+  table.insert(Connections, CollectionService:GetInstanceAddedSignal(Tag):Connect(function(Instance)
+    table.insert(Instances, Instance)
+  end))
+  
+  return Instances
+end
+
 local function CheckPlayerAlly(__Player: Player): boolean
   if tostring(__Player.Team) == "Marines" and __Player.Team == Player.Team then
     return false
@@ -99,6 +109,11 @@ Module.GameData = {
   SeasName = { "Main", "Dressrosa", "Zou" },
   MaxMastery = 600,
   MaxLevel = 2600
+}
+
+Module.CollectionService = {
+  Berries = CreateNewCollection("BerryBush"),
+  Chests = CreateNewCollection("_ChestTagged")
 }
 
 function Module.IsAlive(Character: Model): boolean?
