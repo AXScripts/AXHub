@@ -28,7 +28,7 @@ local _ENV = (getgenv or getrenv or getfenv)()
 
 local HIDDEN_SETTINGS: { [string]: any } = {
   SHOW_CALLBACK_ERROS = false, -- BETA
-  IGNORE_BOSSES_QUESTS = true,
+  IGNORE_BOSSES_QUESTS = false,
   ATTACK_DISTANCE = 50,
   HITS_TO_RESET_COMBO = 4,
   CLEAR_AFTER = 50
@@ -427,7 +427,7 @@ Module.UtilsModules = (function()
       local Enemies, Position, IsBoss = {}, {}
       
       for Enemy, Requires in pairs(Quest.Task) do
-        if Requires == 1 then IsBoss = true if IgnoreBosses then return endend
+        if Requires == 1 then IsBoss = true if IgnoreBosses then return end end
         
         local NewEnemies = Module.EnemyLocations[Enemy] or {}
         Module.EnemyLocations[Enemy] = NewEnemies
