@@ -1,6 +1,6 @@
 local ScriptEnv = ...
 
-local Settings, Connections = ScriptEnv.Settings, ScriptEnv.Connections
+local settings, Connections = ScriptEnv.Settings, ScriptEnv.Connections
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -30,7 +30,8 @@ local HIDDEN_SETTINGS: { [string]: any } = {
   SHOW_CALLBACK_ERROS = false, -- BETA
   IGNORE_BOSSES_QUESTS = true,
   ATTACK_DISTANCE = 50,
-  HITS_TO_RESET_COMBO = 4
+  HITS_TO_RESET_COMBO = 4,
+  CLEAR_AFTER = 50
 }
 
 local function GetEnemyName(string: string): string
@@ -42,7 +43,7 @@ local function CreateNewClear()
   
   return {
     __newindex = function(self, index, value)
-      if COUNT_NEWINDEX >= 50 then
+      if COUNT_NEWINDEX >= HIDDEN_SETTINGS.CLEAR_AFTER then
         for key, cache in pairs(self) do
           if typeof(cache) == "Instance" and not cache:IsDescendantOf(game) then
             rawset(self, key, nil)
@@ -76,7 +77,6 @@ local function CheckPlayerAlly(__Player: Player): boolean
   
   return true
 end
-
 
 local Module = {
   SpawnLocations = {},
@@ -117,7 +117,7 @@ function Module.EnableBuso()
   local Character = Player.Character
   local IsAlive = Module.IsAlive(Character)
   
-  if Settings.AutoBuso and IsAlive and not Character:FindFirstChild("HasBuso") then
+  if settings["farm:auto_buso"] and IsAlive and not Character:FindFirstChild("HasBuso") then
     if Character:HasTag("Buso") then
       Module.Network:InvokeServer("Buso")
     elseif Money.Value >= 25e3 then
@@ -128,7 +128,7 @@ end
 
 function Module.EquipTool(ToolName: string, ByType: boolean?): (nil)
   ByType = if not ToolName then true else ByType
-  ToolName = ToolName or Settings.FarmTool
+  ToolName = ToolName or settings["farm:selected_tool"]
   
   if not Module.IsAlive(Player.Character) then
     return nil
@@ -177,7 +177,7 @@ function Module:BringEnemies(ToEnemy: Instance, SuperBring: boolean?): (nil)
   
   pcall(sethiddenproperty, Player, "SimulationRadius", 500)
   
-  if Settings.BringMobs then
+  if settings["bring:enabled"] then
     Module.IsSuperBring = if SuperBring then true else false
     
     local Name = ToEnemy.Name
@@ -198,7 +198,7 @@ function Module:BringEnemies(ToEnemy: Instance, SuperBring: boolean?): (nil)
       if not Enemy:FindFirstChild("CharacterReady") then continue end
       
       if self.IsAlive(Enemy) then
-        if (Position - Enemy.PrimaryPart.Position).Magnitude < Settings.BringDistance then
+        if (Position - Enemy.PrimaryPart.Position).Magnitude < settings["bring:distance"] then
           Enemy.Humanoid.WalkSpeed = 0
           Enemy.Humanoid.JumpPower = 0
           task.spawn(self.Enemies.Bring, self.Enemies, Enemy)
@@ -299,7 +299,7 @@ Module.UtilsModules = (function()
           EnabledOptions[Flag] = Value
         end
       end
-      
+    
       if HIDDEN_SETTINGS.SHOW_CALLBACK_ERROS then
         return nil
       else
@@ -430,7 +430,7 @@ Module.Enemies = (function()
       
       if Enemy then
         return Enemy
-      elseif Settings.SmoothMode then
+      elseif settings["smooth_mode:enabled"] then
         Debounce.GetEnemy = tick()
       end
     end
@@ -622,7 +622,7 @@ Module.Enemies = (function()
       
       local Target = Cached.Bring[if Module.IsSuperBring then "ALL_MOBS" else EnemyName]
       
-      if Target and (Target.Position - RootPart.Position).Magnitude <= Settings.BringDistance then
+      if Target and (Target.Position - RootPart.Position).Magnitude <= settings["bring:distance"] then
         if AlignPosition.Position ~= Target.Position then
           AlignPosition.Position = Target.Position
         end
@@ -819,9 +819,6 @@ end)
 
 Module.FastAttack = (function()
   local FastAttack = {
-    attackMobs = true,
-    attackPlayers = true,
-    
     Debounce = 0,
     ComboDebounce = 0,
     M1Combo = 0,
@@ -861,148 +858,149 @@ Module.FastAttack = (function()
   local ComboHits = HIDDEN_SETTINGS.HITS_TO_RESET_COMBO
   local AttackDistance = HIDDEN_SETTINGS.ATTACK_DISTANCE
   
-    function FastAttack:CheckStun(ToolTip: string, Character: Character, Humanoid: Humanoid): boolean
-      local Stun = Character:FindFirstChild("Stun")
-      local Busy = Character:FindFirstChild("Busy")
-      
-      if Humanoid.Sit and (ToolTip == "Sword" or ToolTip == "Melee" or ToolTip == "Gun") then
-        return false
-      elseif Stun and Stun.Value > 0 then -- {{ or Busy and Busy.Value }}
-        return false
-      end
-      
-      return true
+  function FastAttack:CheckStun(ToolTip: string, Character: Character, Humanoid: Humanoid): boolean
+    local Stun = Character:FindFirstChild("Stun")
+    local Busy = Character:FindFirstChild("Busy")
+    
+    if Humanoid.Sit and (ToolTip == "Sword" or ToolTip == "Melee" or ToolTip == "Gun") then
+      return false
+    elseif Stun and Stun.Value > 0 then -- {{ or Busy and Busy.Value }}
+      return false
     end
     
-    function FastAttack:Process(assert: boolean, Enemies: Folder, BladeHits: table, Position: Vector3, Distance: number): (nil)
-      if not assert then return end
+    return true
+  end
+  
+  function FastAttack:Process(assert: boolean, Enemies: Folder, BladeHits: table, Position: Vector3, Distance: number): (nil)
+    if not assert then return end
+    
+    local HitboxLimbs = self.HitboxLimbs
+    local Mobs = Enemies:GetChildren()
+    
+    for i = 1, #Mobs do
+      local Enemy = Mobs[i]
+      local BasePart = Enemy:FindFirstChild(HitboxLimbs[math.random(#HitboxLimbs)]) or Enemy.PrimaryPart
       
-      local HitboxLimbs = self.HitboxLimbs
-      local Mobs = Enemies:GetChildren()
+      if not BasePart then continue end
       
-      for i = 1, #Mobs do
-        local Enemy = Mobs[i]
-        local BasePart = Enemy:FindFirstChild(HitboxLimbs[math.random(#HitboxLimbs)]) or Enemy.PrimaryPart
-        
-        if not BasePart then continue end
-        
-        local CanAttack = Enemy.Parent == Characters and CheckPlayerAlly(Players:GetPlayerFromCharacter(Enemy))
-        
-        if Enemy ~= Player.Character and (Enemy.Parent ~= Characters or CanAttack) then
-          if IsAlive(Enemy) and (Position - BasePart.Position).Magnitude <= Distance then
-            if not self.EnemyRootPart then
-              self.EnemyRootPart = BasePart
-            else
-              table.insert(BladeHits, { Enemy, BasePart })
-            end
+      local CanAttack = Enemy.Parent == Characters and CheckPlayerAlly(Players:GetPlayerFromCharacter(Enemy))
+      
+      if Enemy ~= Player.Character and (Enemy.Parent ~= Characters or CanAttack) then
+        if IsAlive(Enemy) and (Position - BasePart.Position).Magnitude <= Distance then
+          if not self.EnemyRootPart then
+            self.EnemyRootPart = BasePart
+          else
+            table.insert(BladeHits, { Enemy, BasePart })
           end
         end
       end
     end
+  end
+  
+  function FastAttack:GetAllBladeHits(Character: Character, Distance: number?): (nil)
+    local Position = Character:GetPivot().Position
+    local BladeHits = {}
     
-    function FastAttack:GetAllBladeHits(Character: Character, Distance: number?): (nil)
-      local Position = Character:GetPivot().Position
-      local BladeHits = {}
-      Distance = Distance or AttackDistance
-      
-      self:Process(self.attackMobs, Enemies, BladeHits, Position, Distance)
-      self:Process(self.attackPlayers, Characters, BladeHits, Position, Distance)
-      
-      return BladeHits
-    end
+    Distance = Distance or AttackDistance
     
-    function FastAttack:GetClosestEnemy(Character: Character, Distance: number?): (nil)
-      local BladeHits = self:GetAllBladeHits(Character, Distance)
-      
-      local Distance, Closest = math.huge
-      
-      for i = 1, #BladeHits do
-        local Magnitude = if Closest then (Closest.Position - BladeHits[i][2].Position).Magnitude else Distance
-        
-        if Magnitude <= Distance then
-          Distance, Closest = Magnitude, BladeHits[i][2]
-        end
-      end
-      
-      return Closest
-    end
+    self:Process(settings["attack:attack_mobs"], Enemies, BladeHits, Position, Distance)
+    self:Process(settings["attack:attack_players"], Characters, BladeHits, Position, Distance)
     
-    function FastAttack:GetCombo(): number
-      local Combo = if tick() - self.ComboDebounce <= 0.4 then self.M1Combo else 0
-      Combo = if Combo >= ComboHits then 1 else Combo + 1
-      
-      self.ComboDebounce = tick()
-      self.M1Combo = Combo
-      
-      return Combo
-    end
+    return BladeHits
+  end
+  
+  function FastAttack:GetClosestEnemy(Character: Character, Distance: number?): (nil)
+    local BladeHits = self:GetAllBladeHits(Character, Distance)
     
-    function FastAttack:UseFruitM1(Character: Character, Equipped: Tool, Combo: number): (nil)
-      local Position = Character:GetPivot().Position
-      local EnemyList = Enemies:GetChildren()
+    local Distance, Closest = math.huge
+    
+    for i = 1, #BladeHits do
+      local Magnitude = if Closest then (Closest.Position - BladeHits[i][2].Position).Magnitude else Distance
       
-      for i = 1, #EnemyList do
-        local Enemy = EnemyList[i]
-        local PrimaryPart = Enemy.PrimaryPart
-        if IsAlive(Enemy) and PrimaryPart and (PrimaryPart.Position - Position).Magnitude <= 50 then
-          local Direction = (PrimaryPart.Position - Position).Unit
-          return Equipped.LeftClickRemote:FireServer(Direction, Combo)
-        end
+      if Magnitude <= Distance then
+        Distance, Closest = Magnitude, BladeHits[i][2]
       end
     end
     
-    function FastAttack:UseNormalClick(Humanoid: Humanoid, Character: Character, Cooldown: number): (nil)
-      self.EnemyRootPart = nil
-      local BladeHits = self:GetAllBladeHits(Character)
-      
-      if self.EnemyRootPart then
-        RegisterAttack:FireServer(Cooldown)
-        
-        if SUCCESS_FLAGS and COMBAT_REMOTE_THREAD and HIT_FUNCTION then
-          HIT_FUNCTION(self.EnemyRootPart, BladeHits)
-        elseif SUCCESS_FLAGS and not COMBAT_REMOTE_THREAD then
-          RegisterHit:FireServer(self.EnemyRootPart, BladeHits)
-        end
+    return Closest
+  end
+  
+  function FastAttack:GetCombo(): number
+    local Combo = if tick() - self.ComboDebounce <= 0.4 then self.M1Combo else 0
+    Combo = if Combo >= ComboHits then 1 else Combo + 1
+    
+    self.ComboDebounce = tick()
+    self.M1Combo = Combo
+    
+    return Combo
+  end
+  
+  function FastAttack:UseFruitM1(Character: Character, Equipped: Tool, Combo: number): (nil)
+    local Position = Character:GetPivot().Position
+    local EnemyList = Enemies:GetChildren()
+    
+    for i = 1, #EnemyList do
+      local Enemy = EnemyList[i]
+      local PrimaryPart = Enemy.PrimaryPart
+      if IsAlive(Enemy) and PrimaryPart and (PrimaryPart.Position - Position).Magnitude <= 50 then
+        local Direction = (PrimaryPart.Position - Position).Unit
+        return Equipped.LeftClickRemote:FireServer(Direction, Combo)
       end
     end
+  end
+  
+  function FastAttack:UseNormalClick(Humanoid: Humanoid, Character: Character, Cooldown: number): (nil)
+    self.EnemyRootPart = nil
+    local BladeHits = self:GetAllBladeHits(Character)
     
-    function FastAttack.attack()
-      if not Settings.AutoAttack or not IsAlive(Player.Character) then return end
+    if self.EnemyRootPart then
+      RegisterAttack:FireServer(Cooldown)
       
-      local self = FastAttack
-      local Character = Player.Character
-      local Humanoid = Character.Humanoid
-      
-      local Equipped = Character:FindFirstChildOfClass("Tool")
-      local ToolTip = Equipped and Equipped.ToolTip
-      local ToolName = Equipped and Equipped.Name
-      
-      if not Equipped or (ToolTip ~= "Melee" and ToolTip ~= "Blox Fruit" and ToolTip ~= "Sword") then
-        return nil
+      if SUCCESS_FLAGS and COMBAT_REMOTE_THREAD and HIT_FUNCTION then
+        HIT_FUNCTION(self.EnemyRootPart, BladeHits)
+      elseif SUCCESS_FLAGS and not COMBAT_REMOTE_THREAD then
+        RegisterHit:FireServer(self.EnemyRootPart, BladeHits)
       end
+    end
+  end
+  
+  function FastAttack.attack()
+    if not settings["attack:enabled"] or not IsAlive(Player.Character) then return end
+    
+    local self = FastAttack
+    local Character = Player.Character
+    local Humanoid = Character.Humanoid
+    
+    local Equipped = Character:FindFirstChildOfClass("Tool")
+    local ToolTip = Equipped and Equipped.ToolTip
+    local ToolName = Equipped and Equipped.Name
+    
+    if not Equipped or (ToolTip ~= "Melee" and ToolTip ~= "Blox Fruit" and ToolTip ~= "Sword") then
+      return nil
+    end
+    
+    local Cooldown = 0.3
+    
+    if (tick() - self.Debounce) >= Cooldown and (settings["attack:ignore_stun"] or self:CheckStun(ToolTip, Character, Humanoid)) then
+      local Combo = self:GetCombo()
+      Cooldown += if Combo >= ComboHits then 0.05 else 0
       
-      local Cooldown = 0.3
+      self.Equipped = Equipped
+      self.Debounce = if Combo >= ComboHits and ToolTip ~= "Gun" then (tick() + 0.05) else tick()
       
-      if (tick() - self.Debounce) >= Cooldown and self:CheckStun(ToolTip, Character, Humanoid) then
-        local Combo = self:GetCombo()
-        Cooldown += if Combo >= ComboHits then 0.05 else 0
-        
-        self.Equipped = Equipped
-        self.Debounce = if Combo >= ComboHits and ToolTip ~= "Gun" then (tick() + 0.05) else tick()
-          
-        if ToolTip == "Blox Fruit" then
-          if ToolName == "Ice-Ice" or ToolName == "Light-Light" then
-            return self:UseNormalClick(Humanoid, Character, Cooldown)
-          elseif Equipped:FindFirstChild("LeftClickRemote") then
-            return self:UseFruitM1(Character, Equipped, Combo)
-          end
-        else
+      if ToolTip == "Blox Fruit" then
+        if ToolName == "Ice-Ice" or ToolName == "Light-Light" then
           return self:UseNormalClick(Humanoid, Character, Cooldown)
+        elseif Equipped:FindFirstChild("LeftClickRemote") then
+          return self:UseFruitM1(Character, Equipped, Combo)
         end
+      else
+        return self:UseNormalClick(Humanoid, Character, Cooldown)
       end
     end
-    
-    table.insert(Connections, Stepped:Connect(FastAttack.attack))
-    
-    return FastAttack
+  end
+  
+  table.insert(Connections, Stepped:Connect(FastAttack.attack))
+  
+  return FastAttack
 end)()
