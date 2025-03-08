@@ -78,6 +78,14 @@ local function CreateNewCollection(Tag: string): { Instance }
   return Instances
 end
 
+local function CreateNewBossData(Position: CFrame, Quest: table?, Type: string?)
+  return {
+    Position = Position,
+    Quest = Quest,
+    Type = Type or "Normal"
+  }
+end
+
 local function CheckPlayerAlly(__Player: Player): boolean
   if tostring(__Player.Team) == "Marines" and __Player.Team == Player.Team then
     return false
@@ -116,6 +124,49 @@ Module.CollectionService = {
   Chests = CreateNewCollection("_ChestTagged")
 }
 
+Module.BossesData = ({
+  {
+    ["Saber Expert"] = CreateNewBossData(CFrame.new(-1461, 30, -51), nil, "Boss"),
+    ["The Saw"] = CreateNewBossData(CFrame.new(-690, 15, 1583), nil, "RaidBoss"),
+    ["Greybeard"] = CreateNewBossData(CFrame.new(-5043, 25, 4262), nil, "RaidBoss"),
+    ["The Gorilla King"] = CreateNewBossData(CFrame.new(-1128, 6, -451), {"JungleQuest", CFrame.new(-1598, 37, 153)}),
+    ["Bobby"] = CreateNewBossData(CFrame.new(-1131, 14, 4080), {"BuggyQuest1", CFrame.new(-1140, 4, 3829)}),
+    ["Yeti"] = CreateNewBossData(CFrame.new(1185, 106, -1518), {"SnowQuest", CFrame.new(1385, 87, -1298)}),
+    ["Vice Admiral"] = CreateNewBossData(CFrame.new(-4807, 21, 4360), {"MarineQuest2", CFrame.new(-5035, 29, 4326), 2}),
+    ["Swan"] = CreateNewBossData(CFrame.new(5230, 4, 749), {"ImpelQuest", CFrame.new(5191, 4, 692)}),
+    ["Chief Warden"] = CreateNewBossData(CFrame.new(5230, 4, 749), {"ImpelQuest", CFrame.new(5191, 4, 692), 2}),
+    ["Warden"] = CreateNewBossData(CFrame.new(5230, 4, 749), {"ImpelQuest", CFrame.new(5191, 4, 692), 1}),
+    ["Magma Admiral"] = CreateNewBossData(CFrame.new(-5694, 18, 8735), {"MagmaQuest", CFrame.new(-5319, 12, 8515)}),
+    ["Fishman Lord"] = CreateNewBossData(CFrame.new(61350, 31, 1095), {"FishmanQuest", CFrame.new(61122, 18, 1567)}),
+    ["Wysper"] = CreateNewBossData(CFrame.new(-7927, 5551, -637), {"SkyExp1Quest", CFrame.new(-7861, 5545, -381)}),
+    ["Thunder God"] = CreateNewBossData(CFrame.new(-7751, 5607, -2315), {"SkyExp2Quest", CFrame.new(-7903, 5636, -1412)}),
+    ["Cyborg"] = CreateNewBossData(CFrame.new(6138, 10, 3939), {"FountainQuest", CFrame.new(5258, 39, 4052)}),
+  },
+  {
+    ["Don Swan"] = CreateNewBossData(CFrame.new(2289, 15, 808), nil, "RaidBoss"),
+    ["Cursed Captain"] = CreateNewBossData(CFrame.new(912, 186, 33591), nil, "RaidBoss"),
+    ["Darkbeard"] = CreateNewBossData(CFrame.new(3695, 13, -3599), nil, "RaidBoss"),
+    ["Diamond"] = CreateNewBossData(CFrame.new(-1569, 199, -31), {"Area1Quest", CFrame.new(-427, 73, 1835)}),
+    ["Jeremy"] = CreateNewBossData(CFrame.new(2316, 449, 787), {"Area2Quest", CFrame.new(635, 73, 919)}),
+    ["Fajita"] = CreateNewBossData(CFrame.new(-2086, 73, -4208), {"MarineQuest3", CFrame.new(-2441, 73, -3219)}),
+    ["Smoke Admiral"] = CreateNewBossData(CFrame.new(-5078, 24, -5352), {"IceSideQuest", CFrame.new(-6061, 16, -4904)}),
+    ["Awakened Ice Admiral"] = CreateNewBossData(CFrame.new(6473, 297, -6944), {"FrostQuest", CFrame.new(5668, 28, -6484)}),
+    ["Tide Keeper"] = CreateNewBossData(CFrame.new(-3711, 77, -11469), {"ForgottenQuest", CFrame.new(-3056, 240, -10145)}),
+  },
+  {
+    ["Cake Prince"] = CreateNewBossData(CFrame.new(-2103, 70, -12165), nil, "RaidBoss"),
+    ["Dough King"] = CreateNewBossData(CFrame.new(-2103, 70, -12165), nil, "RaidBoss"),
+    ["rip_indra True Form"] = CreateNewBossData(CFrame.new(-5333, 424, -2673), nil, "RaidBoss"),
+    ["Stone"] = CreateNewBossData(CFrame.new(-1049, 40, 6791), {"PiratePortQuest", CFrame.new(-449, 109, 5950)}),
+    ["Hydra Leader"] = CreateNewBossData(CFrame.new(5836, 1019, -83), {"VenomCrewQuest", CFrame.new(5214, 1004, 761)}),
+    ["Kilo Admiral"] = CreateNewBossData(CFrame.new(2904, 509, -7349), {"MarineTreeIsland", CFrame.new(2485, 74, -6788)}),
+    ["Captain Elephant"] = CreateNewBossData(CFrame.new(-13393, 319, -8423), {"DeepForestIsland", CFrame.new(-13233, 332, -7626)}),
+    ["Beautiful Pirate"] = CreateNewBossData(CFrame.new(5370, 22, -89), {"DeepForestIsland2", CFrame.new(-12682, 391, -9901)}),
+    ["Cake Queen"] = CreateNewBossData(CFrame.new(-710, 382, -11150), {"IceCreamIslandQuest", CFrame.new(-818, 66, -10964)}),
+    ["Longma"] = CreateNewBossData(CFrame.new(-10218, 333, -9444), nil, "Boss")
+  }
+})[Module.GameData.CurrentSea]
+
 function Module.IsAlive(Character: Model): boolean?
   local Humanoid = Character and (Cached.Humanoids[Character] or Character:FindFirstChildOfClass("Humanoid"))
   
@@ -126,6 +177,10 @@ function Module.IsAlive(Character: Model): boolean?
     
     return Humanoid.Health > 0
   end
+end
+
+function Module.IsBoss(Name: string): boolean
+  return if Module.BossesData[Name] then true else false
 end
 
 function Module.EnableBuso()
@@ -280,14 +335,14 @@ Module.UtilsModules = (function()
         local Enabled = false
         
         for _, Option in Options do
-          Settings.RunningOption = Option.Name
+          ScriptEnv.RunningOption = Option.Name
           local Method = Option.Function()
           
           if Method then
-            Settings.RunningMethod = type(Method) == "string" and Method
+            ScriptEnv.RunningMethod = type(Method) == "string" and Method
             Enabled = true; break
           else
-            Settings.RunningOption, Settings.RunningMethod = nil, nil
+            ScriptEnv.RunningOption, ScriptEnv.RunningMethod = nil, nil
           end
         end
         
@@ -300,7 +355,7 @@ Module.UtilsModules = (function()
     
     local Message = Instance.new("Message", workspace)
     ScriptEnv.error_message = Message
-    Message.Text = (`script Error [ {Settings.RunningOption or "Null"} ] {ErrorMessage}`)
+    Message.Text = (`script Error [ {ScriptEnv.RunningOption or "Null"} ] {ErrorMessage}`)
   end
   
   UtilsModules.OptionsPlugin = function(EnabledOptions)
@@ -369,12 +424,10 @@ Module.UtilsModules = (function()
     local NewQuests = {}
     
     local EnemyTask = function(Quest)
-      local Enemies, Position = {}, {}
+      local Enemies, Position, IsBoss = {}, {}
       
-      for Enemy, Kills in pairs(Quest.Task) do
-        if IgnoreBosses and Kills <= 1 then
-          return nil
-        end
+      for Enemy, Requires in pairs(Quest.Task) do
+        if Requires == 1 then IsBoss = true if IgnoreBosses then return endend
         
         local NewEnemies = Module.EnemyLocations[Enemy] or {}
         Module.EnemyLocations[Enemy] = NewEnemies
@@ -383,7 +436,7 @@ Module.UtilsModules = (function()
         Position = NewEnemies
       end
       
-      return Enemies, Position
+      return Enemies, Position, IsBoss
     end
     
     for QuestName, QuestData in pairs(Quests) do
@@ -394,12 +447,13 @@ Module.UtilsModules = (function()
         local LevelReq = Quest.LevelReq
         
         if LevelReq >= Levels.Min and LevelReq < Levels.Max then
-          local Target, Positions = EnemyTask(Quest)
+          local Target, Positions, IsBoss = EnemyTask(Quest)
           
           if Target and Positions then
             table.insert(NewQuests, {
               Enemy = { Name = Target, Level = LevelReq, Position = Positions },
               Name = QuestName,
+              IsBoss = IsBoss,
               Count = i
             })
           end
